@@ -117,14 +117,111 @@ if cmj_file is not None and roster_file is not None:
             help="Column containing athlete positions"
         )
         
+        # Date column selection for filtering
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("📅 Date Filtering (Optional)")
+        
+        # Try to detect date columns
+        potential_date_cols = [col for col in cmj_data.columns if any(word in col.lower() for word in ['date', 'time', 'year'])]
+        
+        use_date_filter = st.sidebar.checkbox(
+            "Filter by Date/Year",
+            value=False,
+            help="Enable to filter data by specific date range or year"
+        )
+        
+        date_column = None
+        filtered_cmj_data = cmj_data.copy()
+        date_filter_info = ""
+        
+        if use_date_filter and potential_date_cols:
+            date_column = st.sidebar.selectbox(
+                "Date Column",
+                options=potential_date_cols,
+                help="Select the column containing test dates"
+            )
+            
+            # Try to convert to datetime
+            try:
+                filtered_cmj_data[date_column] = pd.to_datetime(filtered_cmj_data[date_column])
+                
+                # Get min and max dates
+                min_date = filtered_cmj_data[date_column].min()
+                max_date = filtered_cmj_data[date_column].max()
+                
+                # Filter type selection
+                filter_type = st.sidebar.radio(
+                    "Filter by:",
+                    options=["Year", "Date Range"],
+                    help="Choose to filter by specific year(s) or custom date range"
+                )
+                
+                if filter_type == "Year":
+                    # Extract years
+                    filtered_cmj_data['Year'] = filtered_cmj_data[date_column].dt.year
+                    available_years = sorted(filtered_cmj_data['Year'].dropna().unique())
+                    
+                    selected_years = st.sidebar.multiselect(
+                        "Select Year(s)",
+                        options=available_years,
+                        default=available_years,
+                        help="Select one or more years to include in analysis"
+                    )
+                    
+                    if selected_years:
+                        filtered_cmj_data = filtered_cmj_data[filtered_cmj_data['Year'].isin(selected_years)]
+                        date_filter_info = f"📅 Filtered to: {', '.join(map(str, selected_years))}"
+                    else:
+                        st.sidebar.warning("⚠️ Please select at least one year")
+                        use_date_filter = False
+                        
+                else:  # Date Range
+                    col1, col2 = st.sidebar.columns(2)
+                    with col1:
+                        start_date = st.date_input(
+                            "Start Date",
+                            value=min_date,
+                            min_value=min_date,
+                            max_value=max_date
+                        )
+                    with col2:
+                        end_date = st.date_input(
+                            "End Date",
+                            value=max_date,
+                            min_value=min_date,
+                            max_value=max_date
+                        )
+                    
+                    # Filter by date range
+                    filtered_cmj_data = filtered_cmj_data[
+                        (filtered_cmj_data[date_column] >= pd.to_datetime(start_date)) &
+                        (filtered_cmj_data[date_column] <= pd.to_datetime(end_date))
+                    ]
+                    date_filter_info = f"📅 Filtered to: {start_date} to {end_date}"
+                    
+            except Exception as e:
+                st.sidebar.error(f"❌ Could not parse dates in column '{date_column}': {str(e)}")
+                use_date_filter = False
+        
+        elif use_date_filter and not potential_date_cols:
+            st.sidebar.warning("⚠️ No date columns detected in CMJ data")
+            use_date_filter = False
+        
+        # Use filtered data for analysis
+        cmj_data_for_analysis = filtered_cmj_data if use_date_filter else cmj_data
+        
         # Display data preview
         col1, col2 = st.columns(2)
         
         with col1:
             st.subheader("📊 CMJ Data Preview")
-            st.dataframe(cmj_data.head(), width="stretch")
-            st.caption(f"Total rows: {len(cmj_data)}")
-            st.caption(f"Columns: {', '.join(cmj_data.columns.tolist())}")
+            if use_date_filter:
+                st.info(date_filter_info)
+            st.dataframe(cmj_data_for_analysis.head(), width="stretch")
+            st.caption(f"Total rows: {len(cmj_data_for_analysis)}")
+            if use_date_filter:
+                st.caption(f"(Filtered from {len(cmj_data)} total records)")
+            st.caption(f"Columns: {', '.join(cmj_data_for_analysis.columns.tolist())}")
         
         with col2:
             st.subheader("👥 Roster Preview")
@@ -214,7 +311,7 @@ if cmj_file is not None and roster_file is not None:
         
         # Merge datasets
         merged_data = pd.merge(
-            cmj_data, 
+            cmj_data_for_analysis, 
             roster_data[[athlete_id_column, position_column]], 
             on=athlete_id_column, 
             how='left'
@@ -295,6 +392,9 @@ if cmj_file is not None and roster_file is not None:
         # Individual athlete analysis
         st.header("👤 Individual Athlete Performance")
         
+        if use_date_filter:
+            st.info(f"{date_filter_info} | Showing {len(analysis_data)} test records")
+        
         # Add percentile ranks to merged data
         def calculate_percentile_rank(value, position_data, metric_col):
             """Calculate what percentile an individual value falls into"""
@@ -311,7 +411,7 @@ if cmj_file is not None and roster_file is not None:
             position_data = analysis_data[analysis_data[position_column] == row[position_column]]
             percentile_rank = calculate_percentile_rank(row[metric_column], position_data, metric_column)
             
-            individual_results.append({
+            result = {
                 'Athlete': row[athlete_id_column],
                 'Position': row[position_column],
                 metric_column: round(row[metric_column], 2),
@@ -320,7 +420,13 @@ if cmj_file is not None and roster_file is not None:
                            'Above Average (P75-P90)' if percentile_rank and percentile_rank >= 75 else
                            'Average (P25-P75)' if percentile_rank and percentile_rank >= 25 else
                            'Below Average (<P25)' if percentile_rank else 'N/A'
-            })
+            }
+            
+            # Add date column if date filtering is enabled
+            if use_date_filter and date_column and date_column in row.index:
+                result['Test Date'] = row[date_column].strftime('%Y-%m-%d') if pd.notna(row[date_column]) else 'N/A'
+            
+            individual_results.append(result)
         
         individual_df = pd.DataFrame(individual_results)
         individual_df = individual_df.sort_values('Percentile Rank', ascending=False)
