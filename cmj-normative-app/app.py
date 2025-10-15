@@ -30,9 +30,13 @@ def load_data(file):
     """Load data from CSV or Excel file"""
     if file is not None:
         if file.name.endswith('.csv'):
-            return pd.read_csv(file)
+            df = pd.read_csv(file)
         else:
-            return pd.read_excel(file)
+            df = pd.read_excel(file)
+        
+        # Strip whitespace from column names
+        df.columns = df.columns.str.strip()
+        return df
     return None
 
 def combine_name_columns(df, first_name_col, last_name_col, combined_col_name="Full Name"):
