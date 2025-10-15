@@ -263,155 +263,166 @@ if cmj_file is not None and roster_file is not None:
             st.warning(f"⚠️ {len(no_position)} athletes found in CMJ data without position information")
             with st.expander("View athletes without position"):
                 st.dataframe(no_position[[athlete_id_column]], width="stretch")
+        
+        # Remove rows without position or metric
+        analysis_data = merged_data.dropna(subset=[position_column, metric_column])
+        
+        # Check if we have any data left to analyze
+        if len(analysis_data) == 0:
+            st.error("❌ No valid data to analyze after removing rows with missing position or metric values.")
+            st.info("Please check that:")
+            st.markdown("- Athletes in CMJ data match athletes in roster")
+            st.markdown("- Position column has values")
+            st.markdown("- Metric column has numeric values")
+            st.stop()
+        
+        st.success(f"✅ Successfully merged data: {len(analysis_data)} records ready for analysis")
+        
+        # Calculate normative values by position
+        st.header("📈 Normative Values by Position")
+        
+        positions = sorted(analysis_data[position_column].unique())
+        
+        # Create normative table
+        normative_results = []
+        
+        for position in positions:
+            position_data = analysis_data[analysis_data[position_column] == position]
+            percentiles = calculate_percentiles(position_data, metric_column)
             
-            # Remove rows without position or metric
-            analysis_data = merged_data.dropna(subset=[position_column, metric_column])
-            
-            st.success(f"✅ Successfully merged data: {len(analysis_data)} records ready for analysis")
-            
-            # Calculate normative values by position
-            st.header("📈 Normative Values by Position")
-            
-            positions = sorted(analysis_data[position_column].unique())
-            
-            # Create normative table
-            normative_results = []
-            
-            for position in positions:
-                position_data = analysis_data[analysis_data[position_column] == position]
-                percentiles = calculate_percentiles(position_data, metric_column)
-                
-                result_row = {
-                    'Position': position,
-                    'N': int(percentiles['N']),
-                    'Mean': round(percentiles['Mean'], 2),
-                    'SD': round(percentiles['SD'], 2),
-                    'Min': round(percentiles['Min'], 2),
-                    'P25': round(percentiles['P25'], 2),
-                    'P50 (Median)': round(percentiles['P50'], 2),
-                    'P75': round(percentiles['P75'], 2),
-                    'P90': round(percentiles['P90'], 2),
-                    'Max': round(percentiles['Max'], 2)
-                }
-                normative_results.append(result_row)
-            
-            normative_df = pd.DataFrame(normative_results)
-            
-            # Calculate overall normative values
-            overall_percentiles = calculate_percentiles(analysis_data, metric_column)
-            overall_row = {
-                'Position': 'ALL POSITIONS',
-                'N': int(overall_percentiles['N']),
-                'Mean': round(overall_percentiles['Mean'], 2),
-                'SD': round(overall_percentiles['SD'], 2),
-                'Min': round(overall_percentiles['Min'], 2),
-                'P25': round(overall_percentiles['P25'], 2),
-                'P50 (Median)': round(overall_percentiles['P50'], 2),
-                'P75': round(overall_percentiles['P75'], 2),
-                'P90': round(overall_percentiles['P90'], 2),
-                'Max': round(overall_percentiles['Max'], 2)
+            result_row = {
+                'Position': position,
+                'N': int(percentiles['N']),
+                'Mean': round(percentiles['Mean'], 2),
+                'SD': round(percentiles['SD'], 2),
+                'Min': round(percentiles['Min'], 2),
+                'P25': round(percentiles['P25'], 2),
+                'P50 (Median)': round(percentiles['P50'], 2),
+                'P75': round(percentiles['P75'], 2),
+                'P90': round(percentiles['P90'], 2),
+                'Max': round(percentiles['Max'], 2)
             }
-            normative_df = pd.concat([normative_df, pd.DataFrame([overall_row])], ignore_index=True)
+            normative_results.append(result_row)
+        
+        normative_df = pd.DataFrame(normative_results)
+        
+        # Calculate overall normative values
+        overall_percentiles = calculate_percentiles(analysis_data, metric_column)
+        overall_row = {
+            'Position': 'ALL POSITIONS',
+            'N': int(overall_percentiles['N']),
+            'Mean': round(overall_percentiles['Mean'], 2),
+            'SD': round(overall_percentiles['SD'], 2),
+            'Min': round(overall_percentiles['Min'], 2),
+            'P25': round(overall_percentiles['P25'], 2),
+            'P50 (Median)': round(overall_percentiles['P50'], 2),
+            'P75': round(overall_percentiles['P75'], 2),
+            'P90': round(overall_percentiles['P90'], 2),
+            'Max': round(overall_percentiles['Max'], 2)
+        }
+        normative_df = pd.concat([normative_df, pd.DataFrame([overall_row])], ignore_index=True)
+        
+        # Display normative table
+        st.dataframe(
+            normative_df.style.background_gradient(
+                subset=['P25', 'P50 (Median)', 'P75', 'P90'], 
+                cmap='RdYlGn'
+            ),
+            width="stretch",
+            height=400
+        )
+        
+        # Individual athlete analysis
+        st.header("👤 Individual Athlete Performance")
+        
+        # Add percentile ranks to merged data
+        def calculate_percentile_rank(value, position_data, metric_col):
+            """Calculate what percentile an individual value falls into"""
+            if pd.isna(value):
+                return None
+            position_values = position_data[metric_col].dropna().values
+            if len(position_values) == 0:
+                return None
+            percentile = (position_values < value).sum() / len(position_values) * 100
+            return round(percentile, 1)
+        
+        individual_results = []
+        for _, row in analysis_data.iterrows():
+            position_data = analysis_data[analysis_data[position_column] == row[position_column]]
+            percentile_rank = calculate_percentile_rank(row[metric_column], position_data, metric_column)
             
-            # Display normative table
-            st.dataframe(
-                normative_df.style.background_gradient(
-                    subset=['P25', 'P50 (Median)', 'P75', 'P90'], 
-                    cmap='RdYlGn'
-                ),
-                width="stretch",
-                height=400
+            individual_results.append({
+                'Athlete': row[athlete_id_column],
+                'Position': row[position_column],
+                metric_column: round(row[metric_column], 2),
+                'Percentile Rank': percentile_rank,
+                'Category': 'Elite (>P90)' if percentile_rank and percentile_rank >= 90 else
+                           'Above Average (P75-P90)' if percentile_rank and percentile_rank >= 75 else
+                           'Average (P25-P75)' if percentile_rank and percentile_rank >= 25 else
+                           'Below Average (<P25)' if percentile_rank else 'N/A'
+            })
+        
+        individual_df = pd.DataFrame(individual_results)
+        individual_df = individual_df.sort_values('Percentile Rank', ascending=False)
+        
+        st.dataframe(individual_df, width="stretch", height=400)
+        
+        # Export options
+        st.header("💾 Export Data")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            # Export normative data as CSV
+            csv_normative = normative_df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Download Normative Values (CSV)",
+                data=csv_normative,
+                file_name="cmj_normative_values.csv",
+                mime="text/csv"
             )
-            
-            # Individual athlete analysis
-            st.header("👤 Individual Athlete Performance")
-            
-            # Add percentile ranks to merged data
-            def calculate_percentile_rank(value, position_data, metric_col):
-                """Calculate what percentile an individual value falls into"""
-                if pd.isna(value):
-                    return None
-                position_values = position_data[metric_col].dropna().values
-                percentile = (position_values < value).sum() / len(position_values) * 100
-                return round(percentile, 1)
-            
-            individual_results = []
-            for _, row in analysis_data.iterrows():
-                position_data = analysis_data[analysis_data[position_column] == row[position_column]]
-                percentile_rank = calculate_percentile_rank(row[metric_column], position_data, metric_column)
-                
-                individual_results.append({
-                    'Athlete': row[athlete_id_column],
-                    'Position': row[position_column],
-                    metric_column: round(row[metric_column], 2),
-                    'Percentile Rank': percentile_rank,
-                    'Category': 'Elite (>P90)' if percentile_rank and percentile_rank >= 90 else
-                               'Above Average (P75-P90)' if percentile_rank and percentile_rank >= 75 else
-                               'Average (P25-P75)' if percentile_rank and percentile_rank >= 25 else
-                               'Below Average (<P25)' if percentile_rank else 'N/A'
-                })
-            
-            individual_df = pd.DataFrame(individual_results)
-            individual_df = individual_df.sort_values('Percentile Rank', ascending=False)
-            
-            st.dataframe(individual_df, width="stretch", height=400)
-            
-            # Export options
-            st.header("💾 Export Data")
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                # Export normative data as CSV
-                csv_normative = normative_df.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="📥 Download Normative Values (CSV)",
-                    data=csv_normative,
-                    file_name="cmj_normative_values.csv",
-                    mime="text/csv"
-                )
-            
-            with col2:
-                # Export individual data as CSV
-                csv_individual = individual_df.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="📥 Download Individual Results (CSV)",
-                    data=csv_individual,
-                    file_name="cmj_individual_results.csv",
-                    mime="text/csv"
-                )
-            
-            with col3:
-                # Export all data as Excel
-                excel_data = to_excel({
-                    'Normative Values': normative_df,
-                    'Individual Results': individual_df,
-                    'Raw Data': analysis_data
-                })
-                st.download_button(
-                    label="📥 Download All Data (Excel)",
-                    data=excel_data,
-                    file_name="cmj_complete_analysis.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-            
-            # Summary statistics
-            st.header("📊 Summary Statistics")
-            
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.metric("Total Athletes", len(individual_df))
-            
-            with col2:
-                st.metric("Positions", len(positions))
-            
-            with col3:
-                elite_count = len(individual_df[individual_df['Category'] == 'Elite (>P90)'])
-                st.metric("Elite Performers", elite_count)
-            
-            with col4:
-                st.metric("Overall Mean", f"{overall_percentiles['Mean']:.2f}")
+        
+        with col2:
+            # Export individual data as CSV
+            csv_individual = individual_df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Download Individual Results (CSV)",
+                data=csv_individual,
+                file_name="cmj_individual_results.csv",
+                mime="text/csv"
+            )
+        
+        with col3:
+            # Export all data as Excel
+            excel_data = to_excel({
+                'Normative Values': normative_df,
+                'Individual Results': individual_df,
+                'Raw Data': analysis_data
+            })
+            st.download_button(
+                label="📥 Download All Data (Excel)",
+                data=excel_data,
+                file_name="cmj_complete_analysis.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        
+        # Summary statistics
+        st.header("📊 Summary Statistics")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Total Athletes", len(individual_df))
+        
+        with col2:
+            st.metric("Positions", len(positions))
+        
+        with col3:
+            elite_count = len(individual_df[individual_df['Category'] == 'Elite (>P90)'])
+            st.metric("Elite Performers", elite_count)
+        
+        with col4:
+            st.metric("Overall Mean", f"{overall_percentiles['Mean']:.2f}")
 
 else:
     # Instructions when no files uploaded
