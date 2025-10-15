@@ -328,10 +328,7 @@ if cmj_file is not None and roster_file is not None:
         
         # Display normative table
         st.dataframe(
-            normative_df.style.background_gradient(
-                subset=['P25', 'P50 (Median)', 'P75', 'P90'], 
-                cmap='RdYlGn'
-            ),
+            normative_df,
             width="stretch",
             height=400
         )
@@ -472,4 +469,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.markdown("Baylor Applied Performance | CMJ Normative Performance Analysis")
+st.markdown("Built with Streamlit | CMJ Normative Performance Analysis")
