@@ -468,4 +468,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.markdown("Built with Streamlit | CMJ Normative Performance Analysis")
+st.markdown("Baylor Applied Performance | CMJ Normative Performance Analysis")
