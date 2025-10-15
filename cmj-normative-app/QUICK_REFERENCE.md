@@ -1,128 +1,146 @@
-# Quick Reference Card
+# Quick Reference Card - CMJ Norms App
 
-## 🚀 Essential Commands
+## 🚀 One-Page Setup Guide
 
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run locally
-streamlit run app.py
-
-# Push to GitHub
-git init
-git add .
-git commit -m "Initial commit"
-git remote add origin https://github.com/YOUR-USERNAME/REPO-NAME.git
-git push -u origin main
+### Step 1: Update GitHub (2 minutes)
+```
+1. Go to: github.com/YOUR-USERNAME/cmj-norms-app
+2. Click: cmj-normative-app/app.py
+3. Click: ✏️ Edit button
+4. Delete all → Paste new code
+5. Commit: "Remove matplotlib dependency"
+6. Wait 2-3 minutes
 ```
 
-## 📊 Required Data Format
-
-### CMJ Data File (CSV/Excel)
+### Step 2: Upload Files (1 minute)
 ```
-Athlete Name,Jump Height (cm),Date
-John Smith,45.2,2024-01-15
-Jane Doe,52.3,2024-01-15
+1. Go to: cmj-norms.streamlit.app
+2. Upload: CMJ_Data_Cleaned.csv
+3. Upload: Roster_Cleaned.csv
 ```
 
-### Roster File (CSV/Excel)
+### Step 3: Select Columns (30 seconds)
 ```
-Athlete Name,Position
-John Smith,Forward
-Jane Doe,Guard
+Athlete ID: Name
+Metric: Jump Height (Imp-Mom) in Inches [in]
+Position: Position
 ```
 
-## 🎯 Default Column Names
-
-- **Athlete ID**: "Athlete Name"
-- **CMJ Metric**: "Jump Height (cm)"
-- **Position**: "Position"
-
-💡 Change these in the sidebar if your files differ!
-
-## 📈 Output Metrics
-
-| Metric | Description |
-|--------|-------------|
-| P25 | 25th percentile |
-| P50 | Median (50th percentile) |
-| P75 | 75th percentile |
-| P90 | 90th percentile |
-| Mean | Average value |
-| SD | Standard deviation |
-| N | Sample size |
-
-## 🏆 Performance Categories
-
-| Category | Percentile | Description |
-|----------|------------|-------------|
-| Elite | ≥P90 | Top 10% |
-| Above Average | P75-P90 | Top 25% |
-| Average | P25-P75 | Middle 50% |
-| Below Average | <P25 | Bottom 25% |
-
-## 📥 Export Options
-
-1. **Normative Values CSV** - Percentiles by position
-2. **Individual Results CSV** - All athlete rankings
-3. **Complete Excel** - All data in multiple sheets
-
-## 🔧 Sidebar Configuration
-
-**CMJ Metric Column Name**: The column with performance data
-**Athlete ID Column**: The column that identifies athletes (must match in both files)
-**Position Column Name**: The column with position information
-
-## ⚠️ Common Issues
-
-| Issue | Solution |
-|-------|----------|
-| Column not found | Update column names in sidebar |
-| Athletes without position | Check athlete names match exactly |
-| No data showing | Verify file format (CSV/Excel) |
-| Import error | Run `pip install -r requirements.txt` |
-
-## 📱 Access URLs
-
-- **Local**: http://localhost:8501
-- **Streamlit Cloud**: https://your-app-name.streamlit.app
-- **Deploy**: https://share.streamlit.io
-
-## 📚 Documentation Files
-
-| File | Purpose |
-|------|---------|
-| QUICKSTART.md | 5-minute setup |
-| GITHUB_SETUP.md | Deployment guide |
-| README.md | Full documentation |
-| WORKFLOW.md | Feature details |
-| PROJECT_SUMMARY.md | Overview |
-
-## 💡 Tips
-
-✅ Test with sample files first
-✅ Athlete names must match EXACTLY between files
-✅ Use UTF-8 encoding for CSV files
-✅ Keep position names consistent
-✅ Export data before closing browser
-
-## 🆘 Support
-
-- Check error messages in the app
-- Review documentation files
-- Verify data format requirements
-- Test with sample data files
-
-## 🎨 Customization
-
-Edit `app.py` to modify:
-- Color schemes
-- Percentile values
-- Category thresholds
-- Export formats
-- Statistical measures
+### Step 4: View Results! 🎉
+```
+✅ 6,023 records analyzed
+✅ 114 athletes ranked
+✅ 13 positions compared
+```
 
 ---
 
-**Quick Start**: Install → Run → Upload → Export!
+## 📥 Download Links
+
+**Latest App Code:**
+- [app.py v2.1.2](computer:///mnt/user-data/outputs/cmj-normative-app/app.py)
+
+**Your Data Files:**
+- [CMJ_Data_Cleaned.csv](computer:///mnt/user-data/outputs/CMJ_Data_Cleaned.csv)
+- [Roster_Cleaned.csv](computer:///mnt/user-data/outputs/Roster_Cleaned.csv)
+
+**Complete Guide:**
+- [FINAL_DEPLOYMENT_CHECKLIST.md](computer:///mnt/user-data/outputs/FINAL_DEPLOYMENT_CHECKLIST.md)
+
+---
+
+## 📊 Your Data at a Glance
+
+| Metric | Value |
+|--------|-------|
+| Total Tests | 6,023 |
+| Unique Athletes | 114 |
+| Positions | 13 |
+| Jump Height Range | 6.9 - 28.8 inches |
+| Average Jump | 16.5 inches |
+| Top Position | OL (988 tests) |
+| Most Athletes | WR (18 athletes) |
+
+---
+
+## 🎯 What You'll Get
+
+### Normative Values Table
+- Statistics for each position
+- Mean, SD, Percentiles (P25, P50, P75, P90)
+- Sample sizes
+
+### Individual Rankings
+- Every athlete's performance
+- Percentile rank within position
+- Performance category
+
+### Export Options
+- CSV files (normative + individual)
+- Excel workbook (all data)
+
+---
+
+## ⚡ Quick Troubleshooting
+
+**Error after update?**
+→ Wait 3 more minutes, hard refresh (Ctrl+Shift+R)
+
+**"No valid data"?**
+→ Use the cleaned CSV files, check column names exactly
+
+**Column not in dropdown?**
+→ Re-upload files, make sure you're using cleaned versions
+
+**Still broken?**
+→ Download new logs, share with support
+
+---
+
+## 🔄 Version History
+
+- **v1.0**: Initial release
+- **v2.0**: Added column detection + dropdowns
+- **v2.1**: Added split name handling
+- **v2.1.1**: Fixed indentation bug
+- **v2.1.2**: Removed matplotlib dependency
+- **v2.2.0**: Simplified - single name column only ⭐ **CURRENT**
+
+---
+
+## 📞 App URL
+
+**Your Live App:**
+`cmj-norms.streamlit.app`
+
+**Your GitHub Repo:**
+`github.com/YOUR-USERNAME/cmj-norms-app`
+
+---
+
+## ✅ Success Indicators
+
+You'll know it's working when you see:
+
+```
+✅ Successfully merged data: 6,023 records ready for analysis
+
+📈 Normative Values by Position
+[Table with 13 positions + ALL POSITIONS row]
+
+👤 Individual Athlete Performance  
+[Table with 114 athletes ranked by percentile]
+
+💾 Export Data
+[Three download buttons]
+
+📊 Summary Statistics
+Total Athletes: 114 | Positions: 13 | Elite Performers: ~11
+```
+
+---
+
+**Last Updated:** October 15, 2025
+**Status:** Production Ready (Simplified - Single Name Column)
+**Version:** 2.2.0
+**Next Step:** Update GitHub with app.py v2.2.0! 🚀

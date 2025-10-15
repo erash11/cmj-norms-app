@@ -39,31 +39,6 @@ def load_data(file):
         return df
     return None
 
-def combine_name_columns(df, first_name_col, last_name_col, combined_col_name="Full Name"):
-    """Combine first and last name columns into a single column"""
-    df = df.copy()
-    df[combined_col_name] = df[first_name_col].astype(str) + " " + df[last_name_col].astype(str)
-    return df
-
-def detect_name_columns(df):
-    """Detect if dataframe has separate first/last name columns"""
-    columns_lower = [col.lower() for col in df.columns]
-    
-    # Check for first name variations
-    first_name_patterns = ['first name', 'firstname', 'first', 'fname', 'given name']
-    last_name_patterns = ['last name', 'lastname', 'last', 'lname', 'surname', 'family name']
-    
-    first_col = None
-    last_col = None
-    
-    for col, col_lower in zip(df.columns, columns_lower):
-        if any(pattern in col_lower for pattern in first_name_patterns):
-            first_col = col
-        if any(pattern in col_lower for pattern in last_name_patterns):
-            last_col = col
-    
-    return first_col, last_col
-
 def calculate_percentiles(data, metric_col):
     """Calculate percentile values for the data"""
     return {
@@ -103,22 +78,6 @@ if cmj_file is not None and roster_file is not None:
     roster_data = load_data(roster_file)
     
     if cmj_data is not None and roster_data is not None:
-        
-        # Check for split name columns in roster
-        roster_first_col, roster_last_col = detect_name_columns(roster_data)
-        cmj_first_col, cmj_last_col = detect_name_columns(cmj_data)
-        
-        # Handle split names in roster
-        if roster_first_col and roster_last_col:
-            st.info(f"📝 Detected split name columns in roster: '{roster_first_col}' and '{roster_last_col}'. Combining them...")
-            roster_data = combine_name_columns(roster_data, roster_first_col, roster_last_col, "Full Name")
-            st.success("✅ Combined roster names into 'Full Name' column")
-        
-        # Handle split names in CMJ data
-        if cmj_first_col and cmj_last_col:
-            st.info(f"📝 Detected split name columns in CMJ data: '{cmj_first_col}' and '{cmj_last_col}'. Combining them...")
-            cmj_data = combine_name_columns(cmj_data, cmj_first_col, cmj_last_col, "Full Name")
-            st.success("✅ Combined CMJ names into 'Full Name' column")
         
         # Configuration options - Dynamic based on uploaded data
         st.sidebar.header("⚙️ Configuration")
