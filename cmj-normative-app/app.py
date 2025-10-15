@@ -25,14 +25,6 @@ roster_file = st.sidebar.file_uploader(
     help="Upload team roster with athlete names and positions"
 )
 
-# Configuration options
-st.sidebar.header("⚙️ Configuration")
-metric_column = st.sidebar.text_input("CMJ Metric Column Name", value="Jump Height (cm)", 
-                                       help="Name of the column containing jump performance metric")
-athlete_id_column = st.sidebar.text_input("Athlete ID Column", value="Athlete Name",
-                                          help="Column name for athlete identifier")
-position_column = st.sidebar.text_input("Position Column Name", value="Position",
-                                        help="Column name for athlete position")
 
 def load_data(file):
     """Load data from CSV or Excel file"""
@@ -66,6 +58,14 @@ def to_excel(dataframes_dict):
     output.seek(0)
     return output
 
+def get_numeric_columns(df):
+    """Get list of numeric columns from dataframe"""
+    return df.select_dtypes(include=[np.number]).columns.tolist()
+
+def get_text_columns(df):
+    """Get list of text/object columns from dataframe"""
+    return df.select_dtypes(include=['object', 'string']).columns.tolist()
+
 # Main application logic
 if cmj_file is not None and roster_file is not None:
     
@@ -75,47 +75,96 @@ if cmj_file is not None and roster_file is not None:
     
     if cmj_data is not None and roster_data is not None:
         
+        # Configuration options - Dynamic based on uploaded data
+        st.sidebar.header("⚙️ Configuration")
+        
+        # Get column suggestions
+        cmj_numeric_cols = get_numeric_columns(cmj_data)
+        cmj_text_cols = get_text_columns(cmj_data)
+        roster_text_cols = get_text_columns(roster_data)
+        
+        # Find common columns between datasets for athlete ID
+        common_cols = list(set(cmj_data.columns) & set(roster_data.columns))
+        
+        # Smart defaults
+        default_athlete_col = common_cols[0] if common_cols else (cmj_text_cols[0] if cmj_text_cols else cmj_data.columns[0])
+        default_metric_col = cmj_numeric_cols[0] if cmj_numeric_cols else cmj_data.columns[-1]
+        default_position_col = roster_text_cols[1] if len(roster_text_cols) > 1 else (roster_text_cols[0] if roster_text_cols else roster_data.columns[-1])
+        
+        # Column selection dropdowns
+        athlete_id_column = st.sidebar.selectbox(
+            "Athlete ID Column",
+            options=cmj_data.columns.tolist(),
+            index=cmj_data.columns.tolist().index(default_athlete_col) if default_athlete_col in cmj_data.columns else 0,
+            help="Column that identifies athletes (must exist in both files)"
+        )
+        
+        metric_column = st.sidebar.selectbox(
+            "CMJ Metric Column",
+            options=cmj_data.columns.tolist(),
+            index=cmj_data.columns.tolist().index(default_metric_col) if default_metric_col in cmj_data.columns else 0,
+            help="Column containing jump performance metric (numeric)"
+        )
+        
+        position_column = st.sidebar.selectbox(
+            "Position Column",
+            options=roster_data.columns.tolist(),
+            index=roster_data.columns.tolist().index(default_position_col) if default_position_col in roster_data.columns else 0,
+            help="Column containing athlete positions"
+        )
+        
         # Display data preview
         col1, col2 = st.columns(2)
         
         with col1:
             st.subheader("📊 CMJ Data Preview")
-            st.dataframe(cmj_data.head(), use_container_width=True)
+            st.dataframe(cmj_data.head(), width="stretch")
             st.caption(f"Total rows: {len(cmj_data)}")
+            st.caption(f"Columns: {', '.join(cmj_data.columns.tolist())}")
         
         with col2:
             st.subheader("👥 Roster Preview")
-            st.dataframe(roster_data.head(), use_container_width=True)
+            st.dataframe(roster_data.head(), width="stretch")
             st.caption(f"Total athletes: {len(roster_data)}")
+            st.caption(f"Columns: {', '.join(roster_data.columns.tolist())}")
         
         # Check if required columns exist
-        required_cols_cmj = [athlete_id_column, metric_column]
-        required_cols_roster = [athlete_id_column, position_column]
+        if athlete_id_column not in cmj_data.columns:
+            st.error(f"❌ Column '{athlete_id_column}' not found in CMJ data")
+            st.stop()
         
-        missing_cmj = [col for col in required_cols_cmj if col not in cmj_data.columns]
-        missing_roster = [col for col in required_cols_roster if col not in roster_data.columns]
-        
-        if missing_cmj:
-            st.error(f"❌ Missing columns in CMJ data: {missing_cmj}")
-            st.info(f"Available columns: {list(cmj_data.columns)}")
-        elif missing_roster:
-            st.error(f"❌ Missing columns in Roster data: {missing_roster}")
-            st.info(f"Available columns: {list(roster_data.columns)}")
-        else:
-            # Merge datasets
-            merged_data = pd.merge(
-                cmj_data, 
-                roster_data[[athlete_id_column, position_column]], 
-                on=athlete_id_column, 
-                how='left'
-            )
+        if metric_column not in cmj_data.columns:
+            st.error(f"❌ Column '{metric_column}' not found in CMJ data")
+            st.stop()
             
-            # Check for athletes without position
-            no_position = merged_data[merged_data[position_column].isna()]
-            if len(no_position) > 0:
-                st.warning(f"⚠️ {len(no_position)} athletes found in CMJ data without position information")
-                with st.expander("View athletes without position"):
-                    st.dataframe(no_position[[athlete_id_column]], use_container_width=True)
+        if athlete_id_column not in roster_data.columns:
+            st.error(f"❌ Column '{athlete_id_column}' not found in Roster data")
+            st.stop()
+            
+        if position_column not in roster_data.columns:
+            st.error(f"❌ Column '{position_column}' not found in Roster data")
+            st.stop()
+        
+        # Check if metric column is numeric
+        if not pd.api.types.is_numeric_dtype(cmj_data[metric_column]):
+            st.error(f"❌ Column '{metric_column}' must contain numeric values")
+            st.info(f"Current data type: {cmj_data[metric_column].dtype}")
+            st.stop()
+        
+        # Merge datasets
+        merged_data = pd.merge(
+            cmj_data, 
+            roster_data[[athlete_id_column, position_column]], 
+            on=athlete_id_column, 
+            how='left'
+        )
+        
+        # Check for athletes without position
+        no_position = merged_data[merged_data[position_column].isna()]
+        if len(no_position) > 0:
+            st.warning(f"⚠️ {len(no_position)} athletes found in CMJ data without position information")
+            with st.expander("View athletes without position"):
+                st.dataframe(no_position[[athlete_id_column]], width="stretch")
             
             # Remove rows without position or metric
             analysis_data = merged_data.dropna(subset=[position_column, metric_column])
@@ -172,7 +221,7 @@ if cmj_file is not None and roster_file is not None:
                     subset=['P25', 'P50 (Median)', 'P75', 'P90'], 
                     cmap='RdYlGn'
                 ),
-                use_container_width=True,
+                width="stretch",
                 height=400
             )
             
@@ -207,7 +256,7 @@ if cmj_file is not None and roster_file is not None:
             individual_df = pd.DataFrame(individual_results)
             individual_df = individual_df.sort_values('Percentile Rank', ascending=False)
             
-            st.dataframe(individual_df, use_container_width=True, height=400)
+            st.dataframe(individual_df, width="stretch", height=400)
             
             # Export options
             st.header("💾 Export Data")
