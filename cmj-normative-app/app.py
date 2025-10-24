@@ -229,63 +229,8 @@ if cmj_file is not None and roster_file is not None:
             st.caption(f"Total athletes: {len(roster_data)}")
             st.caption(f"Columns: {', '.join(roster_data.columns.tolist())}")
         
-        # Manual name combination option
         st.sidebar.markdown("---")
-        st.sidebar.subheader("🔧 Advanced Options")
-        
-        # Option to manually combine name columns
-        combine_roster_names = st.sidebar.checkbox(
-            "Combine Roster Name Columns",
-            help="Check this if your roster has separate First/Last name columns that need to be combined"
-        )
-        
-        if combine_roster_names:
-            roster_text_cols = get_text_columns(roster_data)
-            col1, col2 = st.sidebar.columns(2)
-            with col1:
-                roster_first = st.selectbox(
-                    "First Name Column",
-                    options=roster_text_cols,
-                    key="roster_first"
-                )
-            with col2:
-                roster_last = st.selectbox(
-                    "Last Name Column", 
-                    options=roster_text_cols,
-                    key="roster_last"
-                )
-            
-            if roster_first and roster_last:
-                roster_data = combine_name_columns(roster_data, roster_first, roster_last, "Full Name")
-                st.sidebar.success("✅ Combined into 'Full Name'")
-        
-        combine_cmj_names = st.sidebar.checkbox(
-            "Combine CMJ Name Columns",
-            help="Check this if your CMJ data has separate First/Last name columns that need to be combined"
-        )
-        
-        if combine_cmj_names:
-            cmj_text_cols = get_text_columns(cmj_data)
-            col1, col2 = st.sidebar.columns(2)
-            with col1:
-                cmj_first = st.selectbox(
-                    "First Name Column",
-                    options=cmj_text_cols,
-                    key="cmj_first"
-                )
-            with col2:
-                cmj_last = st.selectbox(
-                    "Last Name Column",
-                    options=cmj_text_cols,
-                    key="cmj_last"
-                )
-            
-            if cmj_first and cmj_last:
-                cmj_data = combine_name_columns(cmj_data, cmj_first, cmj_last, "Full Name")
-                st.sidebar.success("✅ Combined into 'Full Name'")
-        
-        st.sidebar.markdown("---")
-        
+
         # Check if required columns exist
         if athlete_id_column not in cmj_data.columns:
             st.error(f"❌ Column '{athlete_id_column}' not found in CMJ data")
