@@ -79,43 +79,64 @@ if cmj_file is not None and roster_file is not None:
     
     if cmj_data is not None and roster_data is not None:
         
-        # Configuration options - Dynamic based on uploaded data
+        # Configuration options - Auto-detect with manual override option
         st.sidebar.header("⚙️ Configuration")
-        
+
         # Get column suggestions
         cmj_numeric_cols = get_numeric_columns(cmj_data)
         cmj_text_cols = get_text_columns(cmj_data)
         roster_text_cols = get_text_columns(roster_data)
-        
-        # Find common columns between datasets for athlete ID
+
+        # AUTO-DETECT ATHLETE ID COLUMN
+        # Find common columns between datasets - this is almost always the athlete ID
         common_cols = list(set(cmj_data.columns) & set(roster_data.columns))
-        
-        # Smart defaults
-        default_athlete_col = common_cols[0] if common_cols else (cmj_text_cols[0] if cmj_text_cols else cmj_data.columns[0])
-        default_metric_col = cmj_numeric_cols[0] if cmj_numeric_cols else cmj_data.columns[-1]
-        default_position_col = roster_text_cols[1] if len(roster_text_cols) > 1 else (roster_text_cols[0] if roster_text_cols else roster_data.columns[-1])
-        
-        # Column selection dropdowns
-        athlete_id_column = st.sidebar.selectbox(
-            "Athlete ID Column",
-            options=cmj_data.columns.tolist(),
-            index=cmj_data.columns.tolist().index(default_athlete_col) if default_athlete_col in cmj_data.columns else 0,
-            help="Column that identifies athletes (must exist in both files)"
-        )
-        
+        auto_athlete_col = common_cols[0] if common_cols else (cmj_text_cols[0] if cmj_text_cols else cmj_data.columns[0])
+
+        # AUTO-DETECT POSITION COLUMN
+        # Look for columns with "position" in the name
+        position_candidates = [col for col in roster_data.columns if 'position' in col.lower()]
+        auto_position_col = position_candidates[0] if position_candidates else (roster_text_cols[1] if len(roster_text_cols) > 1 else (roster_text_cols[0] if roster_text_cols else roster_data.columns[-1]))
+
+        # Default athlete ID and position (can be overridden in advanced settings)
+        athlete_id_column = auto_athlete_col
+        position_column = auto_position_col
+
+        # METRIC SELECTION - This is the main user choice
+        # Filter to only numeric columns for metric selection
+        metric_options = cmj_numeric_cols if cmj_numeric_cols else cmj_data.columns.tolist()
+        default_metric_col = cmj_numeric_cols[0] if cmj_numeric_cols else cmj_data.columns[0]
+
         metric_column = st.sidebar.selectbox(
-            "CMJ Metric Column",
-            options=cmj_data.columns.tolist(),
-            index=cmj_data.columns.tolist().index(default_metric_col) if default_metric_col in cmj_data.columns else 0,
-            help="Column containing jump performance metric (numeric)"
+            "📊 Select Performance Metric",
+            options=metric_options,
+            index=metric_options.index(default_metric_col) if default_metric_col in metric_options else 0,
+            help="Choose which performance metric to analyze (e.g., Jump Height, Peak Power, etc.)"
         )
-        
-        position_column = st.sidebar.selectbox(
-            "Position Column",
-            options=roster_data.columns.tolist(),
-            index=roster_data.columns.tolist().index(default_position_col) if default_position_col in roster_data.columns else 0,
-            help="Column containing athlete positions"
-        )
+
+        st.sidebar.markdown("---")
+
+        # Advanced settings for manual column override
+        with st.sidebar.expander("⚙️ Advanced Column Settings"):
+            st.caption("Auto-detection usually works. Only change if needed.")
+
+            athlete_id_column = st.selectbox(
+                "Athlete ID Column",
+                options=cmj_data.columns.tolist(),
+                index=cmj_data.columns.tolist().index(auto_athlete_col) if auto_athlete_col in cmj_data.columns else 0,
+                help="Column that identifies athletes (must exist in both files)",
+                key="advanced_athlete_id"
+            )
+
+            position_column = st.selectbox(
+                "Position Column",
+                options=roster_data.columns.tolist(),
+                index=roster_data.columns.tolist().index(auto_position_col) if auto_position_col in roster_data.columns else 0,
+                help="Column containing athlete positions",
+                key="advanced_position"
+            )
+
+        # Show what columns are being used (after advanced settings so overrides are reflected)
+        st.sidebar.info(f"**Using:**\n- Athlete ID: {athlete_id_column}\n- Position: {position_column}\n- Metric: {metric_column}")
         
         # Date column selection for filtering
         st.sidebar.markdown("---")
