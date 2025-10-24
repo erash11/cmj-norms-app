@@ -354,23 +354,22 @@ if cmj_file is not None and roster_file is not None:
 
         positions = sorted(analysis_data[position_column].unique())
 
-        # Function to apply color gradient based on percentile values
+        # Function to apply color gradient based on percentile column level
         def color_percentile_columns(df):
-            """Apply red-to-green color gradient to percentile columns"""
-            # Columns that represent percentiles or performance indicators
-            percentile_cols = ['P25', 'P50 (Median)', 'P75', 'P90', 'Mean']
+            """Apply red-to-green color gradient to entire percentile columns based on percentile level"""
+            # Map column names to their percentile level (0-100 scale)
+            column_percentile_map = {
+                'P25': 25,
+                'P50 (Median)': 50,
+                'P75': 75,
+                'P90': 90,
+                'Mean': 50  # Mean typically around median
+            }
 
-            def percentile_color(val, col_values):
-                """Map value to color based on position in range (red=low, green=high)"""
-                if pd.isna(val) or not isinstance(val, (int, float)):
-                    return ''
-                # Calculate relative position (0-1)
-                min_val = col_values.min()
-                max_val = col_values.max()
-                if max_val == min_val:
-                    norm = 0.5
-                else:
-                    norm = (val - min_val) / (max_val - min_val)
+            def get_color_for_percentile(percentile_level):
+                """Get RGB color for a given percentile level (0-100)"""
+                # Normalize to 0-1
+                norm = percentile_level / 100.0
 
                 # Create gradient: red (low) -> yellow (mid) -> green (high)
                 if norm < 0.5:
@@ -387,9 +386,13 @@ if cmj_file is not None and roster_file is not None:
                 return f'background-color: rgb({r},{g},{b}); color: black;'
 
             styles = pd.DataFrame('', index=df.index, columns=df.columns)
-            for col in percentile_cols:
-                if col in df.columns:
-                    styles[col] = df[col].apply(lambda x: percentile_color(x, df[col]))
+
+            # Apply color to entire columns based on percentile level
+            for col_name, percentile_level in column_percentile_map.items():
+                if col_name in df.columns:
+                    color = get_color_for_percentile(percentile_level)
+                    # Apply same color to all cells in this column
+                    styles[col_name] = [color] * len(df)
 
             return styles
 
