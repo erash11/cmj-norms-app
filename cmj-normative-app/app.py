@@ -53,12 +53,40 @@ def calculate_percentiles(data, metric_col):
         'N': data[metric_col].notna().sum()
     }
 
+def sanitize_sheet_name(name, max_length=31):
+    """Sanitize string to be a valid Excel sheet name
+
+    Excel sheet name rules:
+    - Max 31 characters
+    - Cannot contain: \ / ? * [ ] :
+    - Cannot start or end with apostrophe
+    """
+    # Remove invalid characters
+    invalid_chars = ['\\', '/', '?', '*', '[', ']', ':']
+    for char in invalid_chars:
+        name = name.replace(char, '_')
+
+    # Remove leading/trailing apostrophes and spaces
+    name = name.strip().strip("'")
+
+    # Truncate to max length
+    if len(name) > max_length:
+        name = name[:max_length]
+
+    # Ensure not empty
+    if not name:
+        name = "Sheet"
+
+    return name
+
 def to_excel(dataframes_dict):
     """Convert multiple dataframes to Excel file in memory"""
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         for sheet_name, df in dataframes_dict.items():
-            df.to_excel(writer, sheet_name=sheet_name, index=False)
+            # Sanitize sheet name to ensure it's valid for Excel
+            clean_sheet_name = sanitize_sheet_name(sheet_name)
+            df.to_excel(writer, sheet_name=clean_sheet_name, index=False)
     output.seek(0)
     return output
 
@@ -521,9 +549,12 @@ if cmj_file is not None and roster_file is not None:
             # Create Excel workbook with normative values for each metric
             excel_sheets = {'Individual Results': individual_df, 'Raw Data': analysis_data}
             # Add each metric's normative table as a separate sheet
-            for metric_col in metric_columns:
-                sheet_name = metric_col[:31]  # Excel sheet names max 31 chars
-                excel_sheets[f'Norms_{sheet_name}'] = normative_dfs[metric_col]
+            for i, metric_col in enumerate(metric_columns, 1):
+                # Create short sheet name to fit within 31 char limit (including 'Norms_' prefix)
+                # Truncate metric name to fit: 'Norms_' (6 chars) + metric name (25 chars max)
+                short_name = metric_col[:25] if len(metric_col) > 25 else metric_col
+                sheet_name = f'Norms_{short_name}'
+                excel_sheets[sheet_name] = normative_dfs[metric_col]
 
             excel_data = to_excel(excel_sheets)
             st.download_button(
