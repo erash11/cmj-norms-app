@@ -46,22 +46,25 @@ st.markdown("""
 st.title("Countermovement Jump Normative Performance Analysis")
 st.markdown("Upload your CMJ data and team roster to generate position-based normative values")
 
-# Sidebar for file uploads
-st.sidebar.header("Upload Files")
+st.markdown("---")
 
-# File upload for CMJ data
-cmj_file = st.sidebar.file_uploader(
-    "Upload CMJ Data (CSV/Excel)", 
-    type=['csv', 'xlsx'],
-    help="Upload your countermovement jump performance data"
-)
+# File uploads at the top
+st.header("Upload Files")
+col1, col2 = st.columns(2)
 
-# File upload for roster
-roster_file = st.sidebar.file_uploader(
-    "Upload Team Roster (CSV/Excel)", 
-    type=['csv', 'xlsx'],
-    help="Upload team roster with athlete names and positions"
-)
+with col1:
+    cmj_file = st.file_uploader(
+        "Upload CMJ Data (CSV/Excel)",
+        type=['csv', 'xlsx'],
+        help="Upload your countermovement jump performance data"
+    )
+
+with col2:
+    roster_file = st.file_uploader(
+        "Upload Team Roster (CSV/Excel)",
+        type=['csv', 'xlsx'],
+        help="Upload team roster with athlete names and positions"
+    )
 
 
 def load_data(file):
@@ -144,9 +147,11 @@ if cmj_file is not None and roster_file is not None:
     roster_data = load_data(roster_file)
     
     if cmj_data is not None and roster_data is not None:
-        
+
+        st.markdown("---")
+
         # Configuration options - Auto-detect with manual override option
-        st.sidebar.header("Configuration")
+        st.header("Configuration")
 
         # Get column suggestions
         cmj_numeric_cols = get_numeric_columns(cmj_data)
@@ -174,7 +179,7 @@ if cmj_file is not None and roster_file is not None:
         # Default to first 3 numeric columns (or fewer if less available)
         default_metrics = metric_options[:min(3, len(metric_options))]
 
-        metric_columns = st.sidebar.multiselect(
+        metric_columns = st.multiselect(
             "Select Performance Metrics (3-4 recommended)",
             options=metric_options,
             default=default_metrics,
@@ -183,130 +188,136 @@ if cmj_file is not None and roster_file is not None:
 
         # Validate metric selection
         if not metric_columns:
-            st.sidebar.warning("Please select at least one metric")
+            st.warning("Please select at least one metric")
         elif len(metric_columns) > 6:
-            st.sidebar.warning("Selecting more than 6 metrics may make tables difficult to read")
-
-        st.sidebar.markdown("---")
+            st.warning("Selecting more than 6 metrics may make tables difficult to read")
 
         # Advanced settings for manual column override
-        with st.sidebar.expander("Advanced Column Settings"):
+        with st.expander("Advanced Column Settings"):
             st.caption("Auto-detection usually works. Only change if needed.")
 
-            athlete_id_column = st.selectbox(
-                "Athlete ID Column",
-                options=cmj_data.columns.tolist(),
-                index=cmj_data.columns.tolist().index(auto_athlete_col) if auto_athlete_col in cmj_data.columns else 0,
-                help="Column that identifies athletes (must exist in both files)",
-                key="advanced_athlete_id"
-            )
+            col1, col2 = st.columns(2)
 
-            position_column = st.selectbox(
-                "Position Column",
-                options=roster_data.columns.tolist(),
-                index=roster_data.columns.tolist().index(auto_position_col) if auto_position_col in roster_data.columns else 0,
-                help="Column containing athlete positions",
-                key="advanced_position"
-            )
+            with col1:
+                athlete_id_column = st.selectbox(
+                    "Athlete ID Column",
+                    options=cmj_data.columns.tolist(),
+                    index=cmj_data.columns.tolist().index(auto_athlete_col) if auto_athlete_col in cmj_data.columns else 0,
+                    help="Column that identifies athletes (must exist in both files)",
+                    key="advanced_athlete_id"
+                )
+
+            with col2:
+                position_column = st.selectbox(
+                    "Position Column",
+                    options=roster_data.columns.tolist(),
+                    index=roster_data.columns.tolist().index(auto_position_col) if auto_position_col in roster_data.columns else 0,
+                    help="Column containing athlete positions",
+                    key="advanced_position"
+                )
 
         # Show what columns are being used (after advanced settings so overrides are reflected)
         metrics_display = ", ".join(metric_columns) if metric_columns else "None selected"
-        st.sidebar.info(f"**Using:**\n- Athlete ID: {athlete_id_column}\n- Position: {position_column}\n- Metrics: {metrics_display}")
-        
+        st.info(f"**Using:** Athlete ID: {athlete_id_column} | Position: {position_column} | Metrics: {metrics_display}")
+
         # Date column selection for filtering
-        st.sidebar.markdown("---")
-        st.sidebar.subheader("Date Filtering (Optional)")
-        
         # Try to detect date columns
         potential_date_cols = [col for col in cmj_data.columns if any(word in col.lower() for word in ['date', 'time', 'year'])]
-        
-        use_date_filter = st.sidebar.checkbox(
-            "Filter by Date/Year",
-            value=False,
-            help="Enable to filter data by specific date range or year"
-        )
-        
+
+        use_date_filter = False
         date_column = None
         filtered_cmj_data = cmj_data.copy()
         date_filter_info = ""
-        
-        if use_date_filter and potential_date_cols:
-            date_column = st.sidebar.selectbox(
-                "Date Column",
-                options=potential_date_cols,
-                help="Select the column containing test dates"
+
+        with st.expander("Date Filtering (Optional)"):
+            st.caption("Filter data by specific date range or year")
+
+            use_date_filter = st.checkbox(
+                "Enable Date/Year Filtering",
+                value=False,
+                help="Enable to filter data by specific date range or year"
             )
-            
-            # Try to convert to datetime
-            try:
-                filtered_cmj_data[date_column] = pd.to_datetime(filtered_cmj_data[date_column])
-                
-                # Get min and max dates
-                min_date = filtered_cmj_data[date_column].min()
-                max_date = filtered_cmj_data[date_column].max()
-                
-                # Filter type selection
-                filter_type = st.sidebar.radio(
-                    "Filter by:",
-                    options=["Year", "Date Range"],
-                    help="Choose to filter by specific year(s) or custom date range"
+
+            if use_date_filter and potential_date_cols:
+                date_column = st.selectbox(
+                    "Date Column",
+                    options=potential_date_cols,
+                    help="Select the column containing test dates"
                 )
-                
-                if filter_type == "Year":
-                    # Extract years
-                    filtered_cmj_data['Year'] = filtered_cmj_data[date_column].dt.year
-                    available_years = sorted(filtered_cmj_data['Year'].dropna().unique())
-                    
-                    selected_years = st.sidebar.multiselect(
-                        "Select Year(s)",
-                        options=available_years,
-                        default=available_years,
-                        help="Select one or more years to include in analysis"
+
+                # Try to convert to datetime
+                try:
+                    filtered_cmj_data[date_column] = pd.to_datetime(filtered_cmj_data[date_column])
+
+                    # Get min and max dates
+                    min_date = filtered_cmj_data[date_column].min()
+                    max_date = filtered_cmj_data[date_column].max()
+
+                    # Filter type selection
+                    filter_type = st.radio(
+                        "Filter by:",
+                        options=["Year", "Date Range"],
+                        help="Choose to filter by specific year(s) or custom date range"
                     )
-                    
-                    if selected_years:
-                        filtered_cmj_data = filtered_cmj_data[filtered_cmj_data['Year'].isin(selected_years)]
-                        date_filter_info = f"Filtered to: {', '.join(map(str, selected_years))}"
-                    else:
-                        st.sidebar.warning("Please select at least one year")
-                        use_date_filter = False
-                        
-                else:  # Date Range
-                    col1, col2 = st.sidebar.columns(2)
-                    with col1:
-                        start_date = st.date_input(
-                            "Start Date",
-                            value=min_date,
-                            min_value=min_date,
-                            max_value=max_date
+
+                    if filter_type == "Year":
+                        # Extract years
+                        filtered_cmj_data['Year'] = filtered_cmj_data[date_column].dt.year
+                        available_years = sorted(filtered_cmj_data['Year'].dropna().unique())
+
+                        selected_years = st.multiselect(
+                            "Select Year(s)",
+                            options=available_years,
+                            default=available_years,
+                            help="Select one or more years to include in analysis"
                         )
-                    with col2:
-                        end_date = st.date_input(
-                            "End Date",
-                            value=max_date,
-                            min_value=min_date,
-                            max_value=max_date
-                        )
-                    
-                    # Filter by date range
-                    filtered_cmj_data = filtered_cmj_data[
-                        (filtered_cmj_data[date_column] >= pd.to_datetime(start_date)) &
-                        (filtered_cmj_data[date_column] <= pd.to_datetime(end_date))
-                    ]
-                    date_filter_info = f"Filtered to: {start_date} to {end_date}"
-                    
-            except Exception as e:
-                st.sidebar.error(f"Could not parse dates in column '{date_column}': {str(e)}")
+
+                        if selected_years:
+                            filtered_cmj_data = filtered_cmj_data[filtered_cmj_data['Year'].isin(selected_years)]
+                            date_filter_info = f"Filtered to: {', '.join(map(str, selected_years))}"
+                        else:
+                            st.warning("Please select at least one year")
+                            use_date_filter = False
+
+                    else:  # Date Range
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            start_date = st.date_input(
+                                "Start Date",
+                                value=min_date,
+                                min_value=min_date,
+                                max_value=max_date
+                            )
+                        with col2:
+                            end_date = st.date_input(
+                                "End Date",
+                                value=max_date,
+                                min_value=min_date,
+                                max_value=max_date
+                            )
+
+                        # Filter by date range
+                        filtered_cmj_data = filtered_cmj_data[
+                            (filtered_cmj_data[date_column] >= pd.to_datetime(start_date)) &
+                            (filtered_cmj_data[date_column] <= pd.to_datetime(end_date))
+                        ]
+                        date_filter_info = f"Filtered to: {start_date} to {end_date}"
+
+                except Exception as e:
+                    st.error(f"Could not parse dates in column '{date_column}': {str(e)}")
+                    use_date_filter = False
+
+            elif use_date_filter and not potential_date_cols:
+                st.warning("No date columns detected in CMJ data")
                 use_date_filter = False
-        
-        elif use_date_filter and not potential_date_cols:
-            st.sidebar.warning("No date columns detected in CMJ data")
-            use_date_filter = False
         
         # Use filtered data for analysis
         cmj_data_for_analysis = filtered_cmj_data if use_date_filter else cmj_data
-        
+
+        st.markdown("---")
+
         # Display data preview
+        st.header("Data Preview")
         col1, col2 = st.columns(2)
         
         with col1:
@@ -325,7 +336,7 @@ if cmj_file is not None and roster_file is not None:
             st.caption(f"Total athletes: {len(roster_data)}")
             st.caption(f"Columns: {', '.join(roster_data.columns.tolist())}")
         
-        st.sidebar.markdown("---")
+        st.markdown("---")
 
         # Stop if no metrics selected
         if not metric_columns:
@@ -487,6 +498,15 @@ if cmj_file is not None and roster_file is not None:
             # Single metric - no tabs needed
             styled_df = normative_dfs[metric_columns[0]].style.apply(color_percentile_columns, axis=None)
             st.dataframe(styled_df, width="stretch", height=400, use_container_width=True)
+
+            # Download button for single metric
+            csv_norm = normative_dfs[metric_columns[0]].to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label=f"Download {metric_columns[0]} Normative Values (CSV)",
+                data=csv_norm,
+                file_name=f"normative_values_{metric_columns[0]}.csv",
+                mime="text/csv"
+            )
         else:
             # Multiple metrics - use tabs
             tabs = st.tabs(metric_columns)
@@ -494,7 +514,19 @@ if cmj_file is not None and roster_file is not None:
                 with tabs[i]:
                     styled_df = normative_dfs[metric_col].style.apply(color_percentile_columns, axis=None)
                     st.dataframe(styled_df, width="stretch", height=400, use_container_width=True)
-        
+
+                    # Download button for each metric
+                    csv_norm = normative_dfs[metric_col].to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label=f"Download {metric_col} Normative Values (CSV)",
+                        data=csv_norm,
+                        file_name=f"normative_values_{metric_col}.csv",
+                        mime="text/csv",
+                        key=f"download_norm_{i}"
+                    )
+
+        st.markdown("---")
+
         # Individual athlete analysis
         st.header("Individual Athlete Performance")
 
@@ -510,7 +542,7 @@ if cmj_file is not None and roster_file is not None:
             if len(position_values) == 0:
                 return None
             percentile = (position_values < value).sum() / len(position_values) * 100
-            return round(percentile, 1)
+            return round(percentile, 2)
 
         # Color function for individual percentile ranks
         def color_individual_percentiles(df):
