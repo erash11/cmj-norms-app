@@ -224,6 +224,9 @@ if cmj_file is not None and roster_file is not None:
         # Try to detect date columns
         potential_date_cols = [col for col in cmj_data.columns if any(word in col.lower() for word in ['date', 'time', 'year'])]
 
+        # Auto-select first date column for display (always show in individual results)
+        display_date_column = potential_date_cols[0] if potential_date_cols else None
+
         use_date_filter = False
         date_column = None
         filtered_cmj_data = cmj_data.copy()
@@ -583,11 +586,20 @@ if cmj_file is not None and roster_file is not None:
                 'Position': row[position_column],
             }
 
-            # Add date column if date filtering is enabled (place it early in the dict)
-            if use_date_filter and date_column and date_column in row.index:
-                result['Test Date'] = row[date_column].strftime('%Y-%m-%d') if pd.notna(row[date_column]) else 'N/A'
+            # Always add test date if we have a date column
+            if display_date_column and display_date_column in row.index:
+                try:
+                    if pd.notna(row[display_date_column]):
+                        # Try to format as date
+                        date_val = pd.to_datetime(row[display_date_column])
+                        result['Test Date'] = date_val.strftime('%Y-%m-%d')
+                    else:
+                        result['Test Date'] = 'N/A'
+                except:
+                    # If conversion fails, show as string
+                    result['Test Date'] = str(row[display_date_column]) if pd.notna(row[display_date_column]) else 'N/A'
 
-            # Add each metric and its percentile rank
+            # Add each metric and its percentile rank (keep as floats for color styling)
             for metric_col in metric_columns:
                 result[metric_col] = round(row[metric_col], 2) if pd.notna(row[metric_col]) else None
                 percentile_rank = calculate_percentile_rank(row[metric_col], position_data, metric_col)
@@ -602,8 +614,21 @@ if cmj_file is not None and roster_file is not None:
         if first_metric_percentile in individual_df.columns:
             individual_df = individual_df.sort_values(first_metric_percentile, ascending=False)
 
-        # Apply color styling
+        # Function to format numbers without trailing zeros
+        def format_number(val):
+            """Format number to remove trailing zeros"""
+            if pd.isna(val) or not isinstance(val, (int, float)):
+                return val
+            # Format to 2 decimals, then remove trailing zeros and decimal point if needed
+            return f"{val:.2f}".rstrip('0').rstrip('.')
+
+        # Apply color styling and number formatting
         styled_individual_df = individual_df.style.apply(color_individual_percentiles, axis=None)
+
+        # Format numeric columns (metrics and percentiles) to remove trailing zeros
+        numeric_cols = [col for col in individual_df.columns if col in metric_columns or 'Percentile' in col]
+        for col in numeric_cols:
+            styled_individual_df = styled_individual_df.format({col: format_number})
 
         st.dataframe(styled_individual_df, width="stretch", height=400, use_container_width=True)
         
